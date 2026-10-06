@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paleta: linho e argila são as cores da marca; as demais derivam delas e da logo */
+  --color-linho: #eee9e3;
+  --color-papel: #f6f2ed;
+  --color-bruma: #ded5cb;
+  --color-areia: #cbb5a8;
+  --color-argila: #695c59;
+  --color-cafe: #3a302e;
+
+  --font-serif: var(--font-newsreader), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+
+  --text-display: clamp(2.9rem, 6.6vw, 5.75rem);
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.022em;
+  --text-title: clamp(2.05rem, 4.1vw, 3.4rem);
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.016em;
+  --text-statement: clamp(1.7rem, 3.5vw, 3rem);
+  --text-statement--line-height: 1.2;
+  --text-statement--letter-spacing: -0.012em;
+  --text-lead: clamp(1.2rem, 1.55vw, 1.4rem);
+  --text-lead--line-height: 1.55;
+  --text-prose: 1.125rem;
+  --text-prose--line-height: 1.72;
+
+  --ease-calm: cubic-bezier(0.22, 0.7, 0.2, 1);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-linho);
+    color: var(--color-argila);
+    font-family: var(--font-sans);
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-argila);
+    color: var(--color-linho);
+  }
+
+  section[id] {
+    scroll-margin-top: 5rem;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-argila);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  .on-dark :focus-visible {
+    outline-color: var(--color-linho);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}
+
+@layer components {
+  .wrap {
+    width: 100%;
+    max-width: 78rem;
+    margin-inline: auto;
+    padding-inline: 1.375rem;
+  }
+
+  @media (min-width: 640px) {
+    .wrap {
+      padding-inline: 2.25rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .wrap {
+      padding-inline: 3.5rem;
+    }
+  }
+
+  /* Conteúdo fica acima do fio que atravessa a página */
+  .above-thread {
+    position: relative;
+    z-index: 2;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1.625rem;
+    border-radius: 999px;
+    font-family: var(--font-sans);
+    font-size: 0.975rem;
+    font-weight: 500;
+    letter-spacing: 0.005em;
+    transition:
+      background-color 0.35s var(--ease-calm),
+      color 0.35s var(--ease-calm),
+      border-color 0.35s var(--ease-calm);
+  }
+
+  .btn-solid {
+    background: var(--color-argila);
+    color: var(--color-linho);
+  }
+
+  .btn-solid:hover {
+    background: var(--color-cafe);
+  }
+
+  .btn-light {
+    background: var(--color-linho);
+    color: var(--color-cafe);
+  }
+
+  .btn-light:hover {
+    background: #fff;
+  }
+
+  .btn-line {
+    border: 1px solid color-mix(in srgb, var(--color-argila) 45%, transparent);
+    color: var(--color-cafe);
+  }
+
+  .btn-line:hover {
+    border-color: var(--color-argila);
+    background: color-mix(in srgb, var(--color-argila) 7%, transparent);
+  }
+
+  /* Link de texto com sublinhado que se redesenha no hover */
+  .link {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-size: 100% 1px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    padding-bottom: 2px;
+    transition: background-size 0.45s var(--ease-calm);
+  }
+
+  .link:hover {
+    background-size: 0% 1px;
+    background-position: 100% 100%;
+  }
+
+  /* Logo pintada com a cor do texto, a partir da versão só-alfa */
+  .logo-mask {
+    display: block;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
