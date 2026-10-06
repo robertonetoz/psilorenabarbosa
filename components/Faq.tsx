@@ -20,7 +20,7 @@ export function Faq() {
             <h2 className="font-serif text-title font-light text-cafe">Dúvidas frequentes</h2>
             <p className="mt-5 max-w-[22rem] text-[1rem] leading-relaxed text-argila">
               Não encontrou o que procurava?{" "}
-              <a href={site.whatsapp} target="_blank" rel="noopener noreferrer" className="link font-medium text-cafe">
+              <a href={site.whatsappQuestion} target="_blank" rel="noopener noreferrer" className="link font-medium text-cafe">
                 Pergunte pelo WhatsApp
               </a>
               .

@@ -9,7 +9,10 @@ const siteUrl =
     : "http://localhost:3000");
 
 const whatsappNumber = "5534988726779";
-const whatsappMessage = "Olá, Lorena! Vim pelo seu site e gostaria de agendar uma sessão.";
+
+// Link do WhatsApp que já abre a conversa com a mensagem escrita.
+const whatsappLink = (message: string) =>
+  `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(message)}`;
 
 export const site = {
   name: "Lorena Barbosa",
@@ -18,7 +21,10 @@ export const site = {
   qualification: "Especialização em Psicotraumatologia",
   url: siteUrl,
 
-  whatsapp: `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(whatsappMessage)}`,
+  // botões de agendamento
+  whatsapp: whatsappLink("Olá, Lorena! Vim pelo site e gostaria de agendar uma sessão."),
+  // link "Pergunte pelo WhatsApp", nas dúvidas frequentes
+  whatsappQuestion: whatsappLink("Olá, Lorena! Vim pelo site e tenho uma dúvida."),
   phoneDisplay: "(34) 98872-6779",
   phoneHref: "tel:+5534988726779",
   email: "lorenabarbosa.psico@gmail.com",
