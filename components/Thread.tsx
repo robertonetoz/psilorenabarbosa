@@ -15,7 +15,11 @@ import { animate, motion, useMotionValue, useReducedMotion, useSpring, useTransf
 
 type Point = { x: number; y: number };
 
-const SAMPLES = 900;
+// passos por trecho de curva ao medir comprimento e profundidade
+const STEPS = 8;
+
+// Para cada amostra ao longo do fio: comprimento percorrido e o ponto mais baixo já alcançado.
+type Table = { lengths: Float32Array; depths: Float32Array };
 
 function tangle(c: Point, r: number): Point[] {
   const pts: Point[] = [];
@@ -64,8 +68,10 @@ function relax(p: Point[], maxBend: number): Point[] {
   return out;
 }
 
-function toPath(p: Point[]): string {
-  if (p.length < 2) return "";
+// Monta o traçado e, no mesmo passo, a tabela de comprimento x profundidade. A tabela é
+// calculada aqui, com contas simples: consultar o SVG ponto a ponto (getPointAtLength)
+// travava a página por segundos num caminho deste tamanho.
+function trace(p: Point[]): { d: string; table: Table } {
   const unit = (a: Point, b: Point) => {
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     return { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
@@ -79,15 +85,40 @@ function toPath(p: Point[]): string {
     const len = Math.hypot(before.x + after.x, before.y + after.y) || 1;
     return { x: (before.x + after.x) / len, y: (before.y + after.y) / len };
   });
+
+  const segments = p.length - 1;
+  const lengths = new Float32Array(segments * STEPS + 1);
+  const depths = new Float32Array(segments * STEPS + 1);
   const f = (n: number) => n.toFixed(1);
   let d = `M${f(p[0].x)} ${f(p[0].y)}`;
-  for (let i = 0; i < p.length - 1; i++) {
+  let run = 0;
+  let deepest = p[0].y;
+  let px = p[0].x;
+  let py = p[0].y;
+  depths[0] = deepest;
+
+  for (let i = 0; i < segments; i++) {
     const a = p[i];
     const b = p[i + 1];
     const k = Math.hypot(b.x - a.x, b.y - a.y) * 0.36;
-    d += `C${f(a.x + dir[i].x * k)} ${f(a.y + dir[i].y * k)} ${f(b.x - dir[i + 1].x * k)} ${f(b.y - dir[i + 1].y * k)} ${f(b.x)} ${f(b.y)}`;
+    const c1 = { x: a.x + dir[i].x * k, y: a.y + dir[i].y * k };
+    const c2 = { x: b.x - dir[i + 1].x * k, y: b.y - dir[i + 1].y * k };
+    d += `C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(b.x)} ${f(b.y)}`;
+
+    for (let step = 1; step <= STEPS; step++) {
+      const t = step / STEPS;
+      const u = 1 - t;
+      const x = u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x;
+      const y = u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y;
+      run += Math.hypot(x - px, y - py);
+      deepest = Math.max(deepest, y);
+      px = x;
+      py = y;
+      lengths[i * STEPS + step] = run;
+      depths[i * STEPS + step] = deepest;
+    }
   }
-  return d;
+  return { d, table: { lengths, depths } };
 }
 
 export function Thread() {
@@ -98,7 +129,7 @@ export function Thread() {
   const reduce = useReducedMotion();
 
   const total = useRef(0);
-  const depth = useRef<Float32Array | null>(null);
+  const table = useRef<Table | null>(null);
   const intro = useRef<"pending" | "running" | "done">("pending");
 
   const target = useMotionValue(0);
@@ -120,25 +151,30 @@ export function Thread() {
         pts.push(...loop(c, r.width / 2, el.dataset.dir === "ccw" ? -1 : 1, pts[pts.length - 1] ?? { x: c.x, y: c.y - 1 }));
       else pts.push(c);
     });
-    const d = pts.length > 1 ? toPath(relax(pts, Math.min(70, box.width * 0.055))) : "";
+    if (pts.length < 2) return;
+    const traced = trace(relax(pts, Math.min(70, box.width * 0.055)));
+    const d = traced.d;
+    table.current = traced.table;
     setGeom((g) => (g.d === d && g.w === box.width && g.h === box.height ? g : { w: box.width, h: box.height, d }));
   }, []);
 
   // Quanto do fio deve estar desenhado para a posição atual da rolagem.
   const lengthForScroll = useCallback(() => {
     const host = svgRef.current?.parentElement;
-    const ys = depth.current;
-    if (!host || !ys) return 0;
+    const t = table.current;
+    if (!host || !t) return 0;
+    const last = t.depths.length - 1;
     const reach = -host.getBoundingClientRect().top + window.innerHeight * 0.72;
-    if (reach >= ys[SAMPLES]) return total.current;
+    if (reach >= t.depths[last]) return total.current;
     let lo = 0;
-    let hi = SAMPLES;
+    let hi = last;
     while (lo < hi) {
       const mid = (lo + hi) >> 1;
-      if (ys[mid] < reach) lo = mid + 1;
+      if (t.depths[mid] < reach) lo = mid + 1;
       else hi = mid;
     }
-    return (lo / SAMPLES) * total.current;
+    // a tabela é uma aproximação por segmentos de reta; acerta a escala pelo comprimento real
+    return (t.lengths[lo] / t.lengths[last]) * total.current;
   }, []);
 
   useEffect(() => {
@@ -164,14 +200,7 @@ export function Thread() {
     const path = pathRef.current;
     if (!path || !geom.d) return;
     const full = path.getTotalLength();
-    const ys = new Float32Array(SAMPLES + 1);
-    let max = -Infinity;
-    for (let i = 0; i <= SAMPLES; i++) {
-      max = Math.max(max, path.getPointAtLength((full * i) / SAMPLES).y);
-      ys[i] = max;
-    }
     total.current = full;
-    depth.current = ys;
     setLength(full);
 
     if (reduce) {
@@ -179,11 +208,13 @@ export function Thread() {
       drawn.jump(full);
       return;
     }
-    if (intro.current === "pending") {
+    // se o layout mudar durante a entrada (fontes carregando), ela recomeça de onde parou
+    if (intro.current !== "done") {
+      const first = intro.current === "pending";
       intro.current = "running";
       const controls = animate(target, lengthForScroll(), {
-        duration: 3.2,
-        delay: 0.5,
+        duration: first ? 3.2 : 2.4,
+        delay: first ? 0.5 : 0,
         ease: [0.6, 0, 0.3, 1],
         onComplete: () => {
           intro.current = "done";
@@ -199,7 +230,7 @@ export function Thread() {
   useEffect(() => {
     if (reduce) return;
     const onScroll = () => {
-      if (!depth.current) return;
+      if (!table.current) return;
       if (intro.current === "running") {
         target.stop();
         intro.current = "done";

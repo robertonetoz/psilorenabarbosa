@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
+import { lockScroll } from "@/lib/scroll-lock";
 import { nav, site } from "@/lib/site";
 import { WhatsAppIcon } from "./icons";
 import simbolo from "@/public/images/logo-simbolo.png";
@@ -19,12 +20,12 @@ export function Header() {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
     if (!open) return;
+    const unlock = lockScroll();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = "";
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);

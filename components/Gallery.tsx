@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import { AnimatePresence, motion, useScroll } from "motion/react";
+import { lockScroll } from "@/lib/scroll-lock";
 import { ArrowIcon, CloseIcon } from "./icons";
 
 export type Photo = {
@@ -13,6 +14,12 @@ export type Photo = {
   width: number;
   height: number;
 };
+
+const swift = { duration: 0.38, ease: [0.22, 0.7, 0.2, 1] } as const;
+
+// largura da miniatura em cada faixa de tela (a altura é fixa: 21, 27 e 32rem)
+const thumbSizes = (ratio: number) =>
+  `(min-width: 1024px) ${(32 * ratio).toFixed(1)}rem, (min-width: 640px) ${(27 * ratio).toFixed(1)}rem, ${(21 * ratio).toFixed(1)}rem`;
 
 export function Gallery({ photos }: { photos: Photo[] }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -25,7 +32,6 @@ export function Gallery({ photos }: { photos: Photo[] }) {
   const [edges, setEdges] = useState({ start: true, end: false });
   const [mounted, setMounted] = useState(false);
   const { scrollXProgress } = useScroll({ container: scroller });
-
 
   const updateEdges = useCallback(() => {
     const el = scroller.current;
@@ -57,7 +63,7 @@ export function Gallery({ photos }: { photos: Photo[] }) {
 
   useEffect(() => {
     if (active === null) return;
-    document.body.style.overflow = "hidden";
+    const unlock = lockScroll();
     closeButton.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -66,7 +72,7 @@ export function Gallery({ photos }: { photos: Photo[] }) {
     };
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = "";
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
   }, [active === null, close, move]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -126,6 +132,7 @@ export function Gallery({ photos }: { photos: Photo[] }) {
             >
               <motion.span
                 layoutId={photo.src}
+                transition={swift}
                 className="absolute inset-0 block overflow-hidden rounded-[3px] bg-bruma"
               >
                 <Image
@@ -133,7 +140,7 @@ export function Gallery({ photos }: { photos: Photo[] }) {
                   alt={photo.alt}
                   fill
                   draggable={false}
-                  sizes="(min-width: 1024px) 34rem, 80vw"
+                  sizes={thumbSizes(ratio)}
                   className="object-cover transition-transform duration-[1200ms] ease-calm group-hover:scale-[1.035]"
                 />
               </motion.span>
@@ -182,7 +189,7 @@ export function Gallery({ photos }: { photos: Photo[] }) {
                 initial={{ backgroundColor: "rgba(58,48,46,0)" }}
                 animate={{ backgroundColor: "rgba(58,48,46,0.96)" }}
                 exit={{ backgroundColor: "rgba(58,48,46,0)" }}
-                transition={{ duration: 0.45 }}
+                transition={{ duration: 0.25 }}
                 onClick={close}
               >
                 <motion.div
@@ -195,10 +202,27 @@ export function Gallery({ photos }: { photos: Photo[] }) {
                     aspectRatio: current.width / current.height,
                     width: `min(92vw, calc(78vh * ${(current.width / current.height).toFixed(4)}))`,
                   }}
-                  transition={{ duration: 0.6, ease: [0.22, 0.7, 0.2, 1] }}
+                  transition={swift}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Image src={current.src} alt={current.alt} fill sizes="92vw" className="object-cover" />
+                  {/* a miniatura, que já está carregada, aparece na hora; a versão maior entra por cima */}
+                  <Image
+                    src={current.src}
+                    alt=""
+                    fill
+                    sizes={thumbSizes(current.width / current.height)}
+                    className="object-cover"
+                  />
+                  <Image
+                    src={current.src}
+                    alt={current.alt}
+                    fill
+                    sizes={`min(92vw, calc(78vh * ${(current.width / current.height).toFixed(4)}))`}
+                    className="object-cover opacity-0 transition-opacity duration-300 data-[loaded=true]:opacity-100"
+                    onLoad={(e) => {
+                      e.currentTarget.dataset.loaded = "true";
+                    }}
+                  />
                 </motion.div>
 
                 <motion.div
